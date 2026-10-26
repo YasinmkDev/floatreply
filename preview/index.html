@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FloatReply — Screen Previews</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--hatch-widget-bg, #fff); color: var(--hatch-widget-text, #111); }
+  .wrap { max-width: 480px; margin: 0 auto; padding: 12px 10px 20px; }
+  .head h2 { margin: 2px 0 2px; font-size: 18px; }
+  .head p { margin: 0 0 10px; font-size: 13px; color: var(--hatch-widget-muted, #5e5e5e); line-height: 1.45; }
+  .switcher { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .switcher button { border: 1px solid var(--hatch-widget-border, #e5e7eb); background: var(--hatch-widget-surface, #fff); color: var(--hatch-widget-text, #111); border-radius: 999px; padding: 7px 12px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+  .switcher button.on { background: var(--hatch-widget-accent, #0a66c2); border-color: var(--hatch-widget-accent, #0a66c2); color: var(--hatch-widget-on-accent, #fff); }
+  .phone { background: #000; border-radius: 44px; padding: 10px; box-shadow: 0 18px 40px var(--hatch-widget-shadow, rgba(0,0,0,.25)); }
+  .screen { position: relative; background: #f4f2ee; border-radius: 34px; overflow: hidden; height: 740px; display: flex; flex-direction: column; }
+  .statusbar { background: #fff; height: 30px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-size: 12px; font-weight: 600; color: #111; flex: none; }
+  .statusbar .notch { display: flex; align-items: center; gap: 6px; }
+  .statusbar .slit { width: 34px; height: 3px; border-radius: 2px; background: #e5e7eb; }
+  .statusbar .hole { width: 9px; height: 9px; border-radius: 50%; background: #000; border: 1px solid #e5e7eb; }
+  .viewport { flex: 1; overflow-y: auto; position: relative; -webkit-overflow-scrolling: touch; }
+  .gesturebar { background: #fff; height: 20px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .gesturebar i { display: block; width: 80px; height: 4px; border-radius: 2px; background: #9ca3af; }
+  .caption { margin-top: 12px; font-size: 13px; line-height: 1.5; color: var(--hatch-widget-muted, #5e5e5e); }
+  .caption b { color: var(--hatch-widget-text, #111); }
+  .toast { display: none; margin-top: 10px; background: #e6f4ea; border: 1px solid #b9dfc2; color: #137333; border-radius: 8px; padding: 8px 10px; font-size: 12.5px; font-weight: 600; }
+  .toast.show { display: block; }
+  /* ---- LinkedIn feed ---- */
+  .topbar { background: #fff; display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid #e5e7eb; position: sticky; top: 0; z-index: 5; }
+  .inlogo { width: 32px; height: 32px; border-radius: 4px; background: #0a66c2; color: #fff; font-weight: 800; font-size: 17px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .search { flex: 1; height: 34px; border-radius: 17px; background: #eaf3fc; display: flex; align-items: center; gap: 6px; padding: 0 10px; color: #5e5e5e; font-size: 12px; }
+  .iconbtn { width: 34px; height: 34px; border: none; background: transparent; color: #0a66c2; font-size: 22px; line-height: 1; cursor: pointer; flex: none; }
+  .banner { margin: 12px; padding: 10px 12px; border-radius: 10px; background: #eaf3fc; border: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; }
+  .banner .bolt { width: 24px; height: 24px; border-radius: 50%; background: #0a66c2; color: #fff; display: flex; align-items: center; justify-content: center; flex: none; }
+  .banner b { font-size: 12px; color: #111; }
+  .banner span { font-size: 11px; color: #0a66c2; }
+  .banner .add { font-size: 12px; font-weight: 700; color: #0a66c2; white-space: nowrap; }
+  .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; margin: 0 10px 8px; padding: 12px; cursor: pointer; }
+  .card.targeted { border: 1.5px solid #0a66c2; }
+  .locktag { display: flex; justify-content: space-between; align-items: center; background: #eaf3fc; border-radius: 6px; padding: 4px 8px; margin-bottom: 8px; font-size: 10px; font-weight: 700; color: #0a66c2; }
+  .locktag .badge { color: #004182; font-weight: 600; }
+  .author { display: flex; gap: 10px; align-items: flex-start; }
+  .avatar { width: 42px; height: 42px; border-radius: 50%; color: #fff; font-weight: 700; font-size: 14px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .avatar.sm { width: 28px; height: 28px; font-size: 10px; }
+  .author b { font-size: 14px; color: #111; }
+  .author .deg { font-size: 12px; color: #9ca3af; }
+  .author .hl { font-size: 11px; color: #5e5e5e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 230px; }
+  .author .tm { font-size: 10px; color: #9ca3af; }
+  .gps { margin-left: auto; border: none; background: transparent; color: #9ca3af; cursor: pointer; font-size: 16px; flex: none; }
+  .gps.on { color: #0a66c2; }
+  .posttext { font-size: 13px; line-height: 1.5; color: #111; white-space: pre-line; margin: 10px 0 0; }
+  .tags { font-size: 12px; font-weight: 600; color: #0a66c2; margin-top: 6px; }
+  .counts { display: flex; justify-content: space-between; font-size: 11px; color: #9ca3af; margin-top: 10px; }
+  .divider { border: none; border-top: 1px solid #e5e7eb; margin: 8px 0 4px; }
+  .actions { display: flex; justify-content: space-around; }
+  .actions button { border: none; background: transparent; color: #5e5e5e; font-size: 11.5px; font-weight: 600; padding: 6px 8px; cursor: pointer; border-radius: 6px; }
+  .actions button.on { color: #0a66c2; }
+  .cbox { display: flex; gap: 6px; margin-top: 8px; }
+  .cbox input { flex: 1; border: 1px solid #e5e7eb; border-radius: 16px; padding: 7px 10px; font-size: 12px; outline: none; }
+  .cbox button { border: none; background: #0a66c2; color: #fff; border-radius: 16px; padding: 7px 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
+  .cbox button:disabled { background: #cbd5e1; cursor: default; }
+  .comment { display: flex; gap: 8px; margin-top: 8px; align-items: flex-start; }
+  .comment .bubble { flex: 1; background: #f9fafb; border-radius: 8px; padding: 8px; }
+  .comment .bubble b { font-size: 11px; color: #111; }
+  .comment .bubble .ch { font-size: 9px; color: #9ca3af; }
+  .comment .bubble p { font-size: 11px; line-height: 1.45; color: #111; margin: 4px 0 0; white-space: pre-line; }
+  .aibadge { display: inline-flex; align-items: center; gap: 3px; background: #eaf3fc; color: #0a66c2; border-radius: 4px; padding: 2px 4px; font-size: 9px; font-weight: 700; }
+  /* ---- Floating pill + card ---- */
+  .pill { position: absolute; z-index: 20; display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid #e5e7eb; border-radius: 24px; box-shadow: 0 6px 18px rgba(0,0,0,.18); padding: 8px 12px; cursor: grab; user-select: none; touch-action: none; max-width: 250px; }
+  .pill:active { cursor: grabbing; }
+  .pill .drag { color: #9ca3af; letter-spacing: 1px; font-size: 14px; }
+  .pill .spark { width: 24px; height: 24px; border-radius: 50%; background: #0a66c2; color: #fff; display: flex; align-items: center; justify-content: center; flex: none; }
+  .pill b { font-size: 12px; color: #111; display: flex; align-items: center; gap: 4px; }
+  .pill .dot { width: 6px; height: 6px; border-radius: 50%; background: #16a34a; display: inline-block; }
+  .pill small { font-size: 10px; color: #9ca3af; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+  .pill small.locked { color: #004182; }
+  .hud { position: absolute; z-index: 21; left: 12px; right: 12px; top: 96px; background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; box-shadow: 0 10px 28px rgba(0,0,0,.2); padding: 12px; max-height: 560px; overflow-y: auto; }
+  .hud .hhead { display: flex; align-items: center; gap: 6px; }
+  .hud .hhead .drag { color: #9ca3af; cursor: grab; }
+  .hud .hhead b { font-size: 13px; color: #111; }
+  .hud .hhead .ov { background: #f9fafb; color: #5e5e5e; font-size: 8px; font-weight: 700; letter-spacing: .5px; border-radius: 4px; padding: 2px 5px; }
+  .hud .hhead .x { margin-left: auto; border: none; background: transparent; color: #9ca3af; font-size: 18px; cursor: pointer; }
+  .targetstrip { display: flex; justify-content: space-between; gap: 8px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 6px 8px; margin-top: 8px; }
+  .targetstrip b { font-size: 11px; color: #111; }
+  .targetstrip p { font-size: 10px; color: #5e5e5e; margin: 1px 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sentpill { background: #eaf3fc; color: #004182; font-size: 9px; font-weight: 700; border-radius: 12px; padding: 3px 7px; white-space: nowrap; height: fit-content; }
+  .sentdetail { font-size: 10px; line-height: 1.45; color: #9ca3af; margin-top: 6px; }
+  .hud h4 { font-size: 11px; color: #5e5e5e; margin: 10px 0 6px; }
+  .angle { border: 1px solid #e5e7eb; border-radius: 10px; padding: 7px 10px; margin-bottom: 6px; cursor: pointer; background: #fff; }
+  .angle:hover { border-color: #0a66c2; }
+  .angle .row { display: flex; justify-content: space-between; align-items: center; }
+  .angle .row b { font-size: 12px; color: #111; }
+  .angle .row span { font-size: 9px; font-weight: 600; color: #0a66c2; }
+  .angle p { font-size: 11px; line-height: 1.4; color: #5e5e5e; margin: 3px 0 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .thought { display: flex; gap: 6px; margin-top: 4px; }
+  .thought input { flex: 1; height: 36px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb; padding: 0 8px; font-size: 11px; outline: none; }
+  .thought button { width: 36px; height: 36px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; color: #0a66c2; cursor: pointer; font-size: 16px; }
+  .draftbox { border: 1px dashed #0a66c2; border-radius: 8px; padding: 8px; margin-top: 10px; font-size: 11.5px; line-height: 1.5; color: #111; white-space: pre-line; min-height: 40px; }
+  .draftbox .hint { color: #9ca3af; font-size: 11px; }
+  .btnrow { display: flex; gap: 8px; margin-top: 8px; }
+  .btnrow button { flex: 1; border: none; border-radius: 8px; padding: 9px; font-size: 12px; font-weight: 700; cursor: pointer; }
+  .btnrow .primary { background: #0a66c2; color: #fff; }
+  .btnrow .ghost { background: #f9fafb; color: #111; border: 1px solid #e5e7eb; }
+  /* ---- Persona / telemetry / dialog ---- */
+  .panel { padding: 16px; overflow-y: auto; height: 100%; background: #fff; }
+  .panel .phead { display: flex; gap: 10px; align-items: center; }
+  .panel .phead .ic { width: 36px; height: 36px; border-radius: 8px; background: #0a66c2; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; flex: none; }
+  .panel h3 { margin: 0; font-size: 16px; color: #111; }
+  .panel .sub { font-size: 11px; color: #0a66c2; }
+  .panel h4 { font-size: 13px; color: #111; margin: 18px 0 8px; }
+  .panel input[type=text], .panel textarea { width: 100%; border: 1px solid #e5e7eb; border-radius: 8px; padding: 9px 10px; font-size: 13px; outline: none; font-family: inherit; }
+  .panel input[type=text]:focus, .panel textarea:focus { border-color: #0a66c2; }
+  .preset { border: 1px solid #e5e7eb; border-radius: 8px; padding: 7px 10px; font-size: 11.5px; color: #5e5e5e; margin-bottom: 4px; cursor: pointer; background: #fff; display: flex; justify-content: space-between; }
+  .preset.on { background: #eaf3fc; border-color: #0a66c2; color: #004182; font-weight: 600; }
+  .tone { border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px; margin-bottom: 6px; display: flex; gap: 10px; cursor: pointer; background: #fff; }
+  .tone.on { background: #eaf3fc; border-color: #0a66c2; }
+  .tone .radio { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid #9ca3af; flex: none; margin-top: 1px; display: flex; align-items: center; justify-content: center; }
+  .tone.on .radio { border-color: #0a66c2; }
+  .tone.on .radio i { width: 8px; height: 8px; border-radius: 50%; background: #0a66c2; display: block; }
+  .tone b { font-size: 12px; color: #111; }
+  .tone p { font-size: 10px; color: #5e5e5e; margin: 2px 0 0; line-height: 1.4; }
+  .switchrow { border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; background: #fff; }
+  .switchrow b { font-size: 12px; color: #111; }
+  .switchrow span { font-size: 10px; color: #9ca3af; }
+  .switch { position: relative; width: 44px; height: 26px; flex: none; appearance: none; background: #e5e7eb; border-radius: 999px; outline: none; cursor: pointer; }
+  .switch:checked { background: #0a66c2; }
+  .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: left .15s; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+  .switch:checked::after { left: 21px; }
+  .bigbtn { width: 100%; height: 44px; border: none; border-radius: 10px; background: #0a66c2; color: #fff; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+  .telebox { border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px; background: #fff; }
+  .telebox .thead { display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; color: #111; cursor: pointer; }
+  .logbox { background: #f9fafb; border-radius: 6px; padding: 8px; margin-top: 8px; }
+  .log { font-family: ui-monospace, Menlo, monospace; font-size: 10.5px; line-height: 1.5; color: #5e5e5e; margin: 0 0 4px; word-break: break-word; }
+  .log.gem { color: #0a66c2; }
+  .loglist .log { font-size: 11px; }
+  .modalbg { position: absolute; inset: 0; background: rgba(0,0,0,.45); z-index: 30; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .modal { background: #fff; border-radius: 20px; padding: 18px; width: 100%; max-height: 92%; overflow-y: auto; }
+  .modal h3 { margin: 0 0 4px; font-size: 16px; color: #111; }
+  .modal p { font-size: 12px; color: #5e5e5e; margin: 0 0 12px; line-height: 1.45; }
+  .modal label { font-size: 12px; font-weight: 600; color: #111; display: block; margin: 10px 0 4px; }
+  .modal input[type=text], .modal textarea { width: 100%; border: 1px solid #e5e7eb; border-radius: 8px; padding: 9px 10px; font-size: 13px; outline: none; font-family: inherit; }
+  .modal textarea { height: 120px; resize: vertical; }
+  .modal .mrow { display: flex; gap: 8px; margin-top: 14px; }
+  .modal .mrow button { flex: 1; border-radius: 12px; padding: 10px; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .modal .mrow .ok { background: #0a66c2; color: #fff; border: none; }
+  .modal .mrow .no { background: #fff; color: #5e5e5e; border: 1px solid #e5e7eb; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <h2>FloatReply — screen previews</h2>
+    <p>Interactive preview of the redesigned app (white minimal theme). This is a mockup of the screens — the real Android app runs in Android Studio. Try it: drag the pill onto a post, tap it, pick an angle.</p>
+  </div>
+  <div class="switcher" id="switcher">
+    <button data-screen="feed" class="on">Feed + pill</button>
+    <button data-screen="overlay">Overlay open</button>
+    <button data-screen="persona">Voice &amp; Persona</button>
+    <button data-screen="telemetry">Telemetry</button>
+    <button data-screen="addpost">Add post</button>
+  </div>
+  <div class="phone">
+    <div class="screen">
+      <div class="statusbar"><span>9:41</span><span class="notch"><span class="slit"></span><span class="hole"></span></span><span>5G 100%</span></div>
+      <div class="viewport" id="viewport"></div>
+      <div class="gesturebar"><i></i></div>
+    </div>
+  </div>
+  <div class="caption" id="caption"></div>
+  <div class="toast" id="toast"></div>
+</div>
+<script>
+var DEFAULTS = { screen: "feed", targetId: "post_1", pillPos: { x: 196, y: 520 }, persona: { role: "B2B SaaS Founder & Seed Investor", tone: "DIRECT", autoSubmit: false, signoff: false }, customPosts: [], injected: {} };
+var S = JSON.parse(JSON.stringify(DEFAULTS));
+try {
+  if (window.hatchWidget && window.hatchWidget.getState) {
+    var saved = window.hatchWidget.getState(DEFAULTS);
+    if (saved && typeof saved === "object" && saved.screen) S = saved;
+  }
+} catch (e) {}
+function save() { try { if (window.hatchWidget && window.hatchWidget.setState) window.hatchWidget.setState(S); } catch (e) {} }
+try {
+  window.addEventListener("hatch-widget-state", function (ev) {
+    if (ev && ev.detail && ev.detail.state) { S = ev.detail.state; render(); }
+  });
+} catch (e) {}
+
+var SEED_POSTS = [
+  { id: "post_1", name: "Marcus Vance", headline: "Founder & CEO @ ScaleAgent AI | Ex-YC W21 | Scaling Autonomous B2B Agents", initials: "MV", color: "#0284c7", time: "2h", degree: "1st",
+    content: "SDRs are dead. We just replaced our entire outbound sales team with autonomous AI voice & email agents.\n\nResults after 60 days:\n• 14,800 accounts touched per week (up 11x)\n• 3.8% positive response rate\n• $410k added to pipeline at 1/10th the cost\n\nIf your company is still paying $80k OTE for junior reps to copy-paste cold emails, you are burning capital on an obsolete model.\n\nThe future of B2B sales is algorithmic. Agree?",
+    tags: "#SaaS #ArtificialIntelligence #SalesTech #Outbound", likes: 1842, commentsCount: 428, reposts: 94,
+    sentiment: { badge: "Heated Debate", theme: "AI Outbound vs Human Relationship Selling", score: 96, engagement: "Very High", controversy: "High" },
+    summary: "Claims autonomous AI agents are replacing 80% of SDR outbound pipelines.",
+    comments: [{ name: "Sarah Jenkins", headline: "VP Sales @ HyperGrowth", initials: "SJ", text: "Interesting metrics Marcus, but what is the retention rate on those deals? Quantity does not equal pipeline quality.", time: "1h", ai: false }] },
+  { id: "post_2", name: "Elena Rostova", headline: "VP of Engineering | Ex-Stripe | Distributed Systems & Monolith Advocate", initials: "ER", color: "#7c3aed", time: "4h", degree: "2nd",
+    content: "We just dismantled our 45-microservice Kubernetes cluster and collapsed everything back into a single modular Postgres monolith.\n\nHere is what happened:\n1. AWS infrastructure bill dropped from $48,000/mo to $17,200/mo.\n2. p99 latency went from 340ms to 28ms.\n3. Onboarding time for new engineers plummeted from 3 weeks to 2 days.\n4. Deployment frequency tripled because developers can run the entire system on a MacBook Air.\n\nStop splitting your architecture before you have distributed organizational scale. Most teams don't need Kafka and Istio; they need clean database indices.",
+    tags: "#SoftwareEngineering #Architecture #DevOps #Cloud", likes: 3490, commentsCount: 612, reposts: 285,
+    sentiment: { badge: "Architectural Truth", theme: "Complexity Tax & Developer Velocity", score: 92, engagement: "High", controversy: "Medium" },
+    summary: "Reflecting on unravelling a 45-microservice Kubernetes cluster back to a single modular monolith.",
+    comments: [{ name: "Liam O'Connor", headline: "Principal SRE @ FinTech Co", initials: "LO", text: "Preach. Microservices became a resume-driven development trap for companies with 15 engineers.", time: "3h", ai: false }] },
+  { id: "post_3", name: "Dev Patel", headline: "Bootstrapping to $3.2M ARR | Solo Founder | Sharing the real numbers", initials: "DP", color: "#059669", time: "7h", degree: "1st",
+    content: "Unpopular truth: Bootstrapping is actually lower risk than taking a $5M seed round.\n\n22 months ago I quit my FAANG job with $8,000 in savings. No investors. No fancy pitch deck. Just a Stripe account and a problem I wanted to solve for freelance designers.\n\nToday we hit $270k MRR ($3.2M ARR) at 86% net margin with 4 full-time people.\n\nWhen you take VC money:\n- You must chase a $1B outcome or fail trying.\n- You hire before product-market fit to show growth.\n- You dilute away your life's work.\n\nWhen you bootstrap, a $3M business changes your entire family's generational trajectory. Choose your game wisely.",
+    tags: "#Startups #Bootstrapping #SaaS #FounderJourney", likes: 5210, commentsCount: 780, reposts: 415,
+    sentiment: { badge: "Bootstrapped Reality", theme: "Cash-Flow Discipline & Product Focus", score: 98, engagement: "Viral", controversy: "Low" },
+    summary: "Bootstrapped from zero to $3.2M ARR in 22 months with zero outside capital.",
+    comments: [] },
+  { id: "post_4", name: "Dr. Aris Thorne", headline: "Chief AI Scientist @ Frontier Labs | LLM Architectures & Reasoning", initials: "AT", color: "#ea580c", time: "11h", degree: "2nd",
+    content: "Stop building brittle Vector RAG pipelines. 2M+ token context windows just made embeddings and chunking obsolete.\n\nWhy spend months tuning chunk overlaps, vector databases, and re-ranking models when you can just pass the entire documentation repository into the prompt context?\n\nIn our recent evals, pure long-context attention beat chunked vector search in recall accuracy on complex multi-hop reasoning by 31%.\n\nThe vector database craze was an architectural stopgap for short context windows. It's time to adapt.",
+    tags: "#AI #MachineLearning #LLM #DataScience", likes: 2190, commentsCount: 540, reposts: 138,
+    sentiment: { badge: "Deep Tech Analysis", theme: "Token Economics & Needle-in-a-Haystack Retrieval", score: 91, engagement: "High", controversy: "High" },
+    summary: "Debating whether 2M token context windows render traditional Vector RAG obsolete.",
+    comments: [] }
+];
+var ANGLES = {
+  post_1: { "Contrarian": "Honestly: Automating volume won't fix poor product-market fit. When every buyer gets 50 hyper-personalized AI emails daily, spam filters tighten and reply rates crash to zero. The moat is shifting back to warm referrals and offline community.",
+    "Add Experience": "We tested 12 automated agent workflows on 15k accounts last quarter. Open rates were 42%, but pipeline conversion dropped 3x compared to 1 thoughtful 2-minute video from a founder. Speed isn't the constraint; trust is.",
+    "Smart Question": "What is your average ACV on deals sourced purely by autonomous agents? In our data, agent pipelines only close sub-$10k deals.",
+    "Punchy 1-Liner": "AI makes bad outreach scale infinitely faster than good conversations." },
+  post_2: { "Contrarian": "Honestly: Microservices were never about engineering performance; they were an organizational patch for teams that couldn't communicate. If your team is under 50 engineers, distributing state across RPC calls is just masochism.",
+    "Add Experience": "Collapsed our billing and auth services back into our Postgres core last winter. AWS bill went down 64%, and p99 latency plummeted from 380ms to 24ms. Best refactor we ever pulled off.",
+    "Smart Question": "What did your on-call incident frequency look like before vs after you collapsed the boundaries?",
+    "Punchy 1-Liner": "Network hops are the most expensive way to organize your Git repositories." },
+  post_3: { "Contrarian": "Honestly: Bootstrapping is a luxury for businesses with upfront cashflow dynamics. If you're building deep infra or hardware, pretending venture capital is evil is how you get crushed by well-funded competitors.",
+    "Add Experience": "Rode the bootstrapped wave to $2M ARR before raising a strategic seed. The superpower wasn't the zero-dilution; it was that we knew our customer acquisition payback down to the exact dollar before scaling burn.",
+    "Smart Question": "What was the single hardest pricing adjustment you had to make between $500k and $2M ARR?",
+    "Punchy 1-Liner": "Profitability is the only board member that never asks for preferred liquidation rights." },
+  post_4: { "Contrarian": "Honestly: Dumping 2M tokens into every prompt context is economically reckless for production SaaS. At 100k queries a day, your margin goes negative in 48 hours. Smart hybrid retrieval will dominate for years.",
+    "Add Experience": "Benchmarked our enterprise search on a 1.5M token corpus. Latency jumped from 180ms to 4.2 seconds, and token costs surged 22x. We ended up keeping BM25 + dense re-ranking with mini-prompts.",
+    "Smart Question": "How are you handling the latency floor for interactive user-facing workflows when feeding massive context windows?",
+    "Punchy 1-Liner": "Context size is a vanity metric; retrieval precision is the sanity metric." }
+};
+var GENERIC_ANGLES = { "Contrarian": "While this perspective sounds good on paper, the operational trade-offs in practice usually tell a very different story once you scale past the honeymoon phase.",
+  "Add Experience": "Faced this exact challenge with our engineering team recently. What moved the needle wasn't the framework itself, but establishing clear ownership and ruthless prioritization.",
+  "Smart Question": "What metric are you using to validate that this approach actually moves the bottom line rather than just shifting friction?",
+  "Punchy 1-Liner": "Execution always eats strategy when incentives are properly aligned." };
+var LOGS = [
+  "[SYSTEM_ALERT_WINDOW] FloatReply overlay service bound with TYPE_APPLICATION_OVERLAY.",
+  "[AccessibilityService] FloatReplyAccessibilityNodeListener started.",
+  "[AccessibilityNodeInfo] Bounds detected for post 'Marcus Vance' (chars=612)",
+  "[Gemini API] 4 angle comments generated with persona 'B2B SaaS Founder & Seed Investor' [Tone: Direct]",
+  "[AccessibilityService] Target node locked: Marcus Vance's post (id=post_1)",
+  "[Auto-Injection] Opened comment box on post 'post_1' for angle CONTRARIAN",
+  "[Auto-Injection] Finished typing 214 characters.",
+  "[LinkedIn Feed] Comment submitted by Alex Rivera [Injected via FloatReply]",
+  "[Persona] Auto-Submit toggle updated to: false",
+  "[Persona] Role sign-off updated to: false"
+];
+var TONES = [
+  { id: "DIRECT", label: "Direct", guide: "No fluff, lead with conclusion, zero corporate buzzwords" },
+  { id: "WITTY", label: "Witty", guide: "Clever irony, sharp observation, self-aware startup realism" },
+  { id: "ACADEMIC", label: "Academic", guide: "First-principles reasoning, structured logic, citations & systems thinking" },
+  { id: "CASUAL", label: "Casual", guide: "Conversational peer-to-peer tone, sounds like a warm DM between founders" }
+];
+var PRESETS = ["B2B SaaS Founder & Seed Investor", "Staff Distributed Systems Engineer", "VP Sales & Outbound Growth", "Chief AI Product Architect"];
+var CAPTIONS = {
+  feed: "<b>Feed + floating pill.</b> The simulated LinkedIn feed with the collapsed FloatReply pill. Try: drag the pill onto a post and release — it locks that post. Tap a post card to target it, or tap the pill to open the overlay.",
+  overlay: "<b>Overlay card, open.</b> The targeted post, one-line summary, full sentiment detail, and the 4 comment angles. Tap an angle to watch it type into the comment box, then post it.",
+  persona: "<b>Voice &amp; Persona.</b> Role presets, tone of voice, custom rules, auto-submit and the role sign-off switch. Apply refreshes the overlay angles.",
+  telemetry: "<b>Telemetry.</b> Every overlay event, newest first — service binding, node locks, Gemini calls, injections, submissions.",
+  addpost: "<b>Add a custom post.</b> Paste any real LinkedIn post and test the overlay on it. It lands at the top of the feed and becomes the target."
+};
+function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+function allPosts() { return S.customPosts.concat(SEED_POSTS); }
+function getPost(id) { var p = null; allPosts().forEach(function (x) { if (x.id === id) p = x; }); return p || SEED_POSTS[0]; }
+function anglesFor(id) { return ANGLES[id] || GENERIC_ANGLES; }
+function toast(msg) { var t = document.getElementById("toast"); t.textContent = msg; t.className = "toast show"; setTimeout(function () { t.className = "toast"; }, 4000); }
+function setScreen(name) { S.screen = name; save(); render(); }
+function setTarget(id) { S.targetId = id; save(); }
+
+function commentHTML(c) {
+  var badge = c.ai ? ' <span class="aibadge">FloatReply</span>' : "";
+  var time = c.ai ? "" : '<div style="font-size:9px;color:#9ca3af;margin-left:auto;">' + esc(c.time) + "</div>";
+  return '<div class="comment"><div class="avatar sm" style="background:' + (c.ai ? "#0a66c2" : "#475569") + '">' + esc(c.initials) + "</div>" +
+    '<div class="bubble"><div style="display:flex;align-items:center;gap:6px;"><b>' + esc(c.name) + "</b>" + badge + time + "</div>" +
+    '<div class="ch">' + esc(c.headline) + "</div><p>" + esc(c.text) + "</p></div></div>";
+}
+function postCardHTML(p) {
+  var targeted = p.id === S.targetId;
+  var lock = targeted ? '<div class="locktag"><span>TARGET LOCKED</span><span class="badge">' + esc(p.sentiment.badge) + "</span></div>" : "";
+  var comments = (p.comments || []).map(commentHTML).join("");
+  var injected = S.injected[p.id];
+  if (injected) comments = commentHTML({ name: "Alex Rivera (You)", headline: S.persona.role, initials: "AR", text: injected, time: "Just now", ai: true }) + comments;
+  return '<div class="card' + (targeted ? " targeted" : "") + '" data-post-id="' + p.id + '">' + lock +
+    '<div class="author"><div class="avatar" style="background:' + p.color + '">' + esc(p.initials) + "</div>" +
+    '<div style="flex:1;min-width:0;"><div><b>' + esc(p.name) + '</b><span class="deg"> • ' + esc(p.degree) + "</span></div>" +
+    '<div class="hl">' + esc(p.headline) + '</div><div class="tm">' + esc(p.time) + " • Globe</div></div>" +
+    '<button class="gps' + (targeted ? " on" : "") + '" data-target="' + p.id + '" title="Target this post">◎</button></div>' +
+    '<p class="posttext">' + esc(p.content) + "</p>" +
+    '<div class="tags">' + esc(p.tags) + "</div>" +
+    '<div class="counts"><span>' + p.likes + " likes</span><span>" + p.commentsCount + " comments • " + p.reposts + " reposts</span></div>" +
+    '<hr class="divider"><div class="actions">' +
+    '<button data-like="' + p.id + '">Like</button><button data-cbox="' + p.id + '">Comment</button><button>Repost</button><button>Send</button></div>' +
+    '<div class="cbox" data-cbox-wrap="' + p.id + '" style="display:none;"><input type="text" placeholder="Add a comment…" data-draft="' + p.id + '">' +
+    '<button data-post="' + p.id + '">Post</button></div>' +
+    comments + "</div>";
+}
+function feedHTML() {
+  var html = '<div class="topbar"><div class="inlogo">in</div><div class="search"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg> Search posts, jobs…</div>' +
+    '<button class="iconbtn" data-goto="addpost" title="Add custom post">+</button></div>' +
+    '<div class="banner" data-goto="addpost"><div style="display:flex;gap:8px;align-items:center;"><div class="bolt"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/></svg></div>' +
+    '<div><b>Test FloatReply on your own post</b><br><span>Tap here to paste real LinkedIn content</span></div></div><div class="add">+ Paste</div></div>';
+  allPosts().forEach(function (p) { html += postCardHTML(p); });
+  html += '<div style="height:70px;"></div>';
+  return html;
+}
+function pillHTML() {
+  var p = getPost(S.targetId);
+  var pos = S.pillPos || { x: 196, y: 520 };
+  var status = '<small class="locked">Locked: ' + esc(p.name) + "</small>";
+  return '<div class="pill" id="pill" style="left:' + pos.x + "px;top:" + pos.y + 'px;"><span class="drag">⋮⋮</span>' +
+    '<span class="spark"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.8 5.6L19 9l-5.2 1.4L12 16l-1.8-5.6L5 9l5.2-1.4z"/></svg></span>' +
+    '<span><b>FloatReply <span class="dot"></span></b>' + status + "</span></div>";
+}
+function overlayHTML() {
+  var p = getPost(S.targetId);
+  var s = p.sentiment;
+  var angs = anglesFor(p.id);
+  var cards = "";
+  Object.keys(angs).forEach(function (label) {
+    cards += '<div class="angle" data-angle="' + esc(label) + '"><div class="row"><b>' + esc(label) + '</b><span>Tap to inject</span></div><p>' + esc(angs[label]) + "</p></div>";
+  });
+  return '<div class="hud" id="hud"><div class="hhead"><span class="drag">⋮⋮</span>' +
+    '<svg width="15" height="15" viewBox="0 0 24 24" fill="#0a66c2"><path d="M12 2l1.8 5.6L19 9l-5.2 1.4L12 16l-1.8-5.6L5 9l5.2-1.4z"/></svg>' +
+    '<b>FloatReply</b><span class="ov">OVERLAY</span><button class="x" id="hudClose" title="Close">×</button></div>' +
+    '<div class="targetstrip"><div style="min-width:0;"><b>Target: ' + esc(p.name) + "</b><p>" + esc(p.summary) + "</p></div>" +
+    '<span class="sentpill">' + esc(s.badge) + "</span></div>" +
+    '<div class="sentdetail">' + esc(s.theme) + " · " + s.score + "% confidence · " + esc(s.engagement) + " reach · " + esc(s.controversy) + " controversy</div>" +
+    "<h4>Select an angle to inject:</h4>" + cards +
+    '<div class="thought"><input type="text" id="thoughtInput" placeholder="Add a quick thought…"><button id="refreshBtn" title="Regenerate angles">↻</button></div>' +
+    '<div id="draftArea"></div></div>';
+}
+function personaHTML() {
+  var presets = PRESETS.map(function (r) {
+    return '<div class="preset' + (S.persona.role === r ? " on" : "") + '" data-role="' + esc(r) + '"><span>' + esc(r) + "</span>" + (S.persona.role === r ? "<span>✓</span>" : "") + "</div>";
+  }).join("");
+  var tones = TONES.map(function (t) {
+    return '<div class="tone' + (S.persona.tone === t.id ? " on" : "") + '" data-tone="' + t.id + '"><span class="radio"><i></i></span><span><b>' + t.label + "</b><p>" + t.guide + "</p></span></div>";
+  }).join("");
+  return '<div class="panel"><div class="phead"><div class="ic">≡</div><div><h3>Voice &amp; Persona</h3><div class="sub">Calibrates FloatReply AI overlay tone</div></div></div>' +
+    "<h4>Role &amp; Expertise:</h4>" +
+    '<input type="text" id="roleInput" value="' + esc(S.persona.role) + '"><div style="font-size:11px;color:#9ca3af;margin:8px 0 4px;">Quick Presets:</div>' + presets +
+    "<h4>Tone of Voice:</h4>" + tones +
+    "<h4>Custom Rules &amp; Guardrails:</h4>" +
+    '<textarea id="rulesInput" style="height:90px;">Ban buzzwords like \'game-changer\' and \'delve\'. Cite concrete numbers or trade-offs. Never re-explain what the author wrote.</textarea>' +
+    '<div class="switchrow" style="margin-top:16px;"><div><b>Auto-Submit Comment</b><br><span>Directly publishes to LinkedIn after typing</span></div>' +
+    '<input type="checkbox" class="switch" id="autoSwitch"' + (S.persona.autoSubmit ? " checked" : "") + "></div>" +
+    '<div class="switchrow"><div><b>Sign comments with role</b><br><span>Appends your role under injected comments</span></div>' +
+    '<input type="checkbox" class="switch" id="signSwitch"' + (S.persona.signoff ? " checked" : "") + "></div>" +
+    '<button class="bigbtn" id="applyBtn">Apply &amp; Refresh AI Overlay</button>' +
+    '<div class="telebox" style="margin-top:14px;"><div class="thead" id="teleHead"><span>Overlay Telemetry (' + LOGS.length + ")</span><span>Inspect</span></div>" +
+    '<div class="logbox">' + LOGS.slice(0, 6).map(function (l) { return '<p class="log' + (l.indexOf("Gemini") >= 0 ? " gem" : "") + '">' + esc(l) + "</p>"; }).join("") + "</div></div></div>";
+}
+function telemetryHTML() {
+  return '<div class="panel"><h3>Overlay Telemetry</h3><p style="font-size:12px;color:#5e5e5e;">' + LOGS.length + " events · newest first</p>" +
+    '<div class="loglist" style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px;">' +
+    LOGS.map(function (l) { return '<p class="log' + (l.indexOf("Gemini") >= 0 ? " gem" : "") + '">' + esc(l) + "</p>"; }).join("") + "</div></div>";
+}
+function addpostHTML() {
+  return '<div class="modalbg" id="modalbg"><div class="modal"><h3>Paste Custom LinkedIn Post</h3>' +
+    "<p>Test FloatReply's floating AI overlay on any post from your actual LinkedIn feed.</p>" +
+    "<label>Author Name</label>" + '<input type="text" id="inAuthor" placeholder="e.g. Satya Nadella">' +
+    "<label>Author Headline</label>" + '<input type="text" id="inHeadline" placeholder="e.g. Chairman and CEO at Microsoft">' +
+    "<label>Post Body Content</label>" + '<textarea id="inContent" placeholder="Paste the LinkedIn post copy here…"></textarea>' +
+    '<div class="mrow"><button class="no" id="dlgCancel">Cancel</button><button class="ok" id="dlgAdd">Add to Feed</button></div></div></div>';
+}
+function appendToScreen(html) {
+  var tmp = document.createElement("div");
+  tmp.innerHTML = html;
+  var scr = document.querySelector(".screen");
+  while (tmp.firstChild) scr.appendChild(tmp.firstChild);
+}
+function render() {
+  var vp = document.getElementById("viewport");
+  document.querySelectorAll(".screen > .pill, .screen > .hud, .screen > .modalbg").forEach(function (n) { n.remove(); });
+  var sw = document.querySelectorAll("#switcher button");
+  sw.forEach(function (b) { b.className = b.getAttribute("data-screen") === S.screen ? "on" : ""; });
+  document.getElementById("caption").innerHTML = CAPTIONS[S.screen] || "";
+  if (S.screen === "feed") { vp.innerHTML = feedHTML(); appendToScreen(pillHTML()); bindFeed(vp); bindPill(); }
+  else if (S.screen === "overlay") { vp.innerHTML = feedHTML(); appendToScreen(overlayHTML()); bindFeed(vp); bindOverlay(vp); }
+  else if (S.screen === "persona") { vp.innerHTML = personaHTML(); bindPersona(vp); }
+  else if (S.screen === "telemetry") { vp.innerHTML = telemetryHTML(); }
+  else if (S.screen === "addpost") { vp.innerHTML = feedHTML(); appendToScreen(addpostHTML()); bindFeed(vp); bindDialog(vp); }
+  vp.scrollTop = 0;
+}
+function bindFeed(vp) {
+  vp.querySelectorAll("[data-goto]").forEach(function (el) {
+    el.addEventListener("click", function (ev) { ev.stopPropagation(); setScreen(el.getAttribute("data-goto")); });
+  });
+  vp.querySelectorAll("[data-target]").forEach(function (el) {
+    el.addEventListener("click", function (ev) { ev.stopPropagation(); setTarget(el.getAttribute("data-target")); toast("Locked: " + getPost(el.getAttribute("data-target")).name); render(); });
+  });
+  vp.querySelectorAll(".card").forEach(function (card) {
+    card.addEventListener("click", function (ev) {
+      if (ev.target.closest("button") || ev.target.closest("input") || ev.target.closest(".cbox")) return;
+      setTarget(card.getAttribute("data-post-id")); render();
+    });
+  });
+  vp.querySelectorAll("[data-cbox]").forEach(function (btn) {
+    btn.addEventListener("click", function (ev) {
+      ev.stopPropagation();
+      var w = vp.querySelector('[data-cbox-wrap="' + btn.getAttribute("data-cbox") + '"]');
+      if (w) w.style.display = w.style.display === "none" ? "flex" : "none";
+    });
+  });
+  vp.querySelectorAll("[data-post]").forEach(function (btn) {
+    btn.addEventListener("click", function (ev) {
+      ev.stopPropagation();
+      var id = btn.getAttribute("data-post");
+      var input = vp.querySelector('[data-draft="' + id + '"]');
+      var text = input ? input.value.trim() : "";
+      if (!text) return;
+      S.injected[id] = text; save(); toast("Comment published to LinkedIn feed!"); render();
+    });
+  });
+}
+function bindPill() {
+  var pill = document.getElementById("pill");
+  if (!pill) return;
+  var vp = document.getElementById("viewport");
+  var scr = document.querySelector(".screen");
+  var sx = 0, sy = 0, ox = 0, oy = 0, moved = false;
+  pill.addEventListener("pointerdown", function (ev) {
+    moved = false; sx = ev.clientX; sy = ev.clientY;
+    var r = pill.getBoundingClientRect(); var s = scr.getBoundingClientRect();
+    ox = r.left - s.left; oy = r.top - s.top;
+    pill.setPointerCapture(ev.pointerId);
+  });
+  pill.addEventListener("pointermove", function (ev) {
+    if (ev.buttons !== 1) return;
+    var dx = ev.clientX - sx, dy = ev.clientY - sy;
+    if (Math.abs(dx) + Math.abs(dy) > 4) moved = true;
+    var s = scr.getBoundingClientRect(); var v = vp.getBoundingClientRect();
+    var nx = Math.max(0, Math.min(ox + dx, s.width - pill.offsetWidth - 8));
+    var ny = Math.max(30, Math.min(oy + dy, 30 + v.height - pill.offsetHeight - 8));
+    pill.style.left = nx + "px"; pill.style.top = ny + "px";
+  });
+  pill.addEventListener("pointerup", function (ev) {
+    if (!moved) { setScreen("overlay"); return; }
+    S.pillPos = { x: parseInt(pill.style.left, 10) || 196, y: parseInt(pill.style.top, 10) || 520 };
+    var pr = pill.getBoundingClientRect();
+    var cx = pr.left + pr.width / 2, cy = pr.top + pr.height / 2;
+    var hit = null;
+    vp.querySelectorAll(".card").forEach(function (card) {
+      var r = card.getBoundingClientRect();
+      if (cx >= r.left && cx <= r.right && cy >= r.top && cy <= r.bottom) hit = card.getAttribute("data-post-id");
+    });
+    if (hit) { setTarget(hit); toast("Locked: " + getPost(hit).name); }
+    save(); render();
+  });
+}
+function bindOverlay(vp) {
+  var close = document.getElementById("hudClose");
+  if (close) close.addEventListener("click", function () { setScreen("feed"); });
+  var ref = document.getElementById("refreshBtn");
+  if (ref) ref.addEventListener("click", function () { toast("Angles refreshed for " + getPost(S.targetId).name); });
+  vp.querySelectorAll(".angle").forEach(function (el) {
+    el.addEventListener("click", function () {
+      var label = el.getAttribute("data-angle");
+      var text = anglesFor(S.targetId)[label] || "";
+      var thought = document.getElementById("thoughtInput");
+      if (thought && thought.value.trim()) text += " Specifically regarding " + thought.value.trim() + ",";
+      if (S.persona.signoff) text += "\n— " + S.persona.role;
+      var area = document.getElementById("draftArea");
+      area.innerHTML = '<div class="draftbox"><span class="hint">Typing into ' + esc(getPost(S.targetId).name) + '&#39;s comment box…</span><br><span id="typeText"></span></div>' +
+        '<div class="btnrow" id="draftBtns" style="display:none;"><button class="primary" id="postInjected">Post comment</button><button class="ghost" id="viewFeed">View in feed</button></div>';
+      var i = 0, out = document.getElementById("typeText");
+      var timer = setInterval(function () {
+        i += 2;
+        out.textContent = text.slice(0, i);
+        if (i >= text.length) {
+          clearInterval(timer);
+          document.getElementById("draftBtns").style.display = "flex";
+          toast(S.persona.autoSubmit ? "Comment typed! Auto-submitting…" : "Comment injected! Ready to post.");
+          if (S.persona.autoSubmit) { finishInject(text); }
+        }
+      }, 12);
+      document.getElementById("postInjected").addEventListener("click", function () { finishInject(text); });
+      document.getElementById("viewFeed").addEventListener("click", function () { S.injected[S.targetId] = text; save(); setScreen("feed"); });
+    });
+  });
+  function finishInject(text) {
+    S.injected[S.targetId] = text; save();
+    toast("Comment published to LinkedIn feed!");
+    setScreen("feed");
+  }
+}
+function bindPersona(vp) {
+  vp.querySelectorAll("[data-role]").forEach(function (el) {
+    el.addEventListener("click", function () {
+      S.persona.role = el.getAttribute("data-role");
+      var inp = document.getElementById("roleInput"); if (inp) inp.value = S.persona.role;
+      save(); render();
+    });
+  });
+  var roleInput = document.getElementById("roleInput");
+  if (roleInput) roleInput.addEventListener("change", function () { S.persona.role = roleInput.value; save(); render(); });
+  vp.querySelectorAll("[data-tone]").forEach(function (el) {
+    el.addEventListener("click", function () { S.persona.tone = el.getAttribute("data-tone"); save(); render(); });
+  });
+  var a = document.getElementById("autoSwitch");
+  if (a) a.addEventListener("change", function () { S.persona.autoSubmit = a.checked; save(); });
+  var s = document.getElementById("signSwitch");
+  if (s) s.addEventListener("change", function () { S.persona.signoff = s.checked; save(); });
+  var ap = document.getElementById("applyBtn");
+  if (ap) ap.addEventListener("click", function () { save(); toast("Persona applied — angles refreshed"); setScreen("feed"); });
+  var th = document.getElementById("teleHead");
+  if (th) th.addEventListener("click", function () { setScreen("telemetry"); });
+}
+function bindDialog(vp) {
+  var cancel = document.getElementById("dlgCancel");
+  if (cancel) cancel.addEventListener("click", function () { setScreen("feed"); });
+  var bg = document.getElementById("modalbg");
+  if (bg) bg.addEventListener("click", function (ev) { if (ev.target === bg) setScreen("feed"); });
+  var add = document.getElementById("dlgAdd");
+  if (add) add.addEventListener("click", function () {
+    var content = document.getElementById("inContent").value.trim();
+    if (!content) { toast("Paste the post content first."); return; }
+    var author = document.getElementById("inAuthor").value.trim() || "Industry Colleague";
+    var headline = document.getElementById("inHeadline").value.trim() || "VP Product & AI Strategy";
+    var post = { id: "custom_" + Date.now(), name: author, headline: headline, initials: author.slice(0, 2).toUpperCase(), color: "#4f46e5",
+      time: "Just now", degree: "1st", content: content, tags: "#ProductStrategy #Tech #Innovation", likes: 42, commentsCount: 6, reposts: 2,
+      sentiment: { badge: "Community Post", theme: "Custom User-Pasted Post", score: 90, engagement: "High", controversy: "Medium" },
+      summary: "Discussion on \"" + content.slice(0, 60) + "…\"", comments: [] };
+    S.customPosts.unshift(post); S.targetId = post.id; save();
+    toast("Custom post added to feed!"); setScreen("feed");
+  });
+}
+document.getElementById("switcher").addEventListener("click", function (ev) {
+  var btn = ev.target.closest("button[data-screen]");
+  if (btn) setScreen(btn.getAttribute("data-screen"));
+});
+render();
+</script>
+</body>
+</html>
