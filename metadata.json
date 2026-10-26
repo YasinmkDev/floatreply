@@ -1,0 +1,6 @@
+{
+  "name": "FloatReply",
+  "description": "Interactive mobile simulator for FloatReply — a floating AI comment overlay for LinkedIn featuring persona calibration, drop coordinate detection, sentiment analysis, and auto-injection.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

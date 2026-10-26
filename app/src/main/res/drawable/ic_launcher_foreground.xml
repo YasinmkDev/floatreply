@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Floating pill overlay with glowing border -->
+    <!-- Pill shadow / glow -->
+    <path
+        android:pathData="M34,44 h40 a14,14 0 0 1 14,14 a14,14 0 0 1 -14,14 h-40 a14,14 0 0 1 -14,-14 a14,14 0 0 1 14,-14 z"
+        android:fillColor="#155E75" />
+    <!-- Pill core -->
+    <path
+        android:pathData="M34,42 h40 a14,14 0 0 1 14,14 a14,14 0 0 1 -14,14 h-40 a14,14 0 0 1 -14,-14 a14,14 0 0 1 14,-14 z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="20"
+                android:startY="42"
+                android:endX="88"
+                android:endY="70"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#06B6D4" />
+                <item android:offset="1.0" android:color="#3B82F6" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Chat bubble indicator dot & pointer -->
+    <path
+        android:pathData="M34,68 L28,76 L40,70 Z"
+        android:fillColor="#06B6D4" />
+    <!-- AI Sparkle 4-pointed star in the pill -->
+    <path
+        android:pathData="M54,48 Q54,54 48,54 Q54,54 54,60 Q54,54 60,54 Q54,54 54,48 Z"
+        android:fillColor="#FFFFFF" />
+    <path
+        android:pathData="M66,47 Q66,50 63,50 Q66,50 66,53 Q66,50 69,50 Q66,50 66,47 Z"
+        android:fillColor="#E0F2FE" />
+    <!-- Pill text lines / comment hint -->
+    <path
+        android:pathData="M34,53 h8 v2 h-8 z M34,57 h10 v2 h-10 z"
+        android:fillColor="#FFFFFF" />
+</vector>
